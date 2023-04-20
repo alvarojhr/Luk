@@ -27,7 +27,7 @@ var messagePool = &sync.Pool{
 }
 
 
-func readAndProcessTarGz(filename string) error {
+func readAndProcessTarGz(filename string, messages chan<- *Message) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func readAndProcessTarGz(filename string) error {
 			defer wg.Done()
 
 			for fileTask := range fileChan {
-				processFile(fileTask.Header, fileTask.Content)
+				processFile(fileTask.Header, fileTask.Content,messages)
 				qnMessages++
 			}
 		}()
@@ -93,7 +93,7 @@ func readAndProcessTarGz(filename string) error {
 // 	fmt.Printf("Processing folder: %s\n", header.Name)
 // }
 
-func processFile(header *tar.Header, reader io.Reader) {
+func processFile(header *tar.Header, reader io.Reader, messages chan<- *Message) {
 	//fmt.Printf("Processing file: %s\n", header.Name)
 
 	scanner := bufio.NewScanner(reader)
@@ -114,7 +114,8 @@ func processFile(header *tar.Header, reader io.Reader) {
 	}
 
 	//message := 
-	messageBuilder.Build()
+	message := messageBuilder.Build()
+	messages <- &message
 	//fmt.Printf("Procesed message: %s\n", message.MessageID)
 
 	// Do something with the parsed message

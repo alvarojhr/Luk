@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
-	"log"
+	"sync"
 )
 
 func main() {
@@ -29,8 +30,20 @@ func main() {
 	defer pprof.StopCPUProfile()
 
 	filename := os.Args[1]
-	err = readAndProcessTarGz(filename)
+
+	messages := make(chan *Message, batchSize*concurrentWorkers)
+	var wg sync.WaitGroup
+
+	for i := 0; i < concurrentWorkers; i++ {
+		wg.Add(1)
+		go uploadWorker(messages, &wg)
+	}
+
+	err = readAndProcessTarGz(filename, messages)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
+
+	close(messages)
+	wg.Wait()
 }
